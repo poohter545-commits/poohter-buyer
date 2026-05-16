@@ -1,0 +1,13 @@
+{
+  "name": "poohter-buyer-website",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Upload-ready Poohter buyer storefront.",
+  "scripts": {
+    "start": "node server.js",
+    "build": "node build.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
