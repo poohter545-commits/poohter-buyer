@@ -71,6 +71,7 @@
               </button>
             </div>
           </div>
+          <button class="text-action" id="forgot-password-link" type="button">Forgot password?</button>
           <button type="submit" id="btn-login" class="btn-auth">
             Login to Account <i data-lucide="arrow-right" size="18"></i>
           </button>
@@ -128,8 +129,53 @@
             <input type="password" id="signup-confirm-password" class="form-control" placeholder="Password" required minlength="6" />
             <small class="password-hint error-hint" id="confirm-password-hint">Passwords do not match.</small>
           </div>
+          <div class="form-group hidden" id="signup-otp-group">
+            <div class="label-row">
+              <i data-lucide="shield-check"></i>
+              <label for="signup-otp">Email OTP</label>
+            </div>
+            <input type="text" id="signup-otp" class="form-control" placeholder="6 digit code" inputmode="numeric" maxlength="6" />
+            <small class="password-hint">Check your email for the Poohter verification code.</small>
+          </div>
           <button type="submit" id="btn-signup" class="btn-auth">
             Create Account <i data-lucide="arrow-right" size="18"></i>
+          </button>
+        </form>
+
+        <form id="reset-form" class="auth-form hidden">
+          <h2>Reset Password</h2>
+          <div class="form-group">
+            <div class="label-row">
+              <i data-lucide="mail"></i>
+              <label for="reset-email">Email Address</label>
+            </div>
+            <input type="email" id="reset-email" class="form-control" placeholder="example@mail.com" required />
+          </div>
+          <div class="hidden" id="reset-otp-fields">
+            <div class="form-group">
+              <div class="label-row">
+                <i data-lucide="shield-check"></i>
+                <label for="reset-otp">Email OTP</label>
+              </div>
+              <input type="text" id="reset-otp" class="form-control" placeholder="6 digit code" inputmode="numeric" maxlength="6" />
+            </div>
+            <div class="form-group">
+              <div class="label-row">
+                <i data-lucide="lock"></i>
+                <label for="reset-password">New Password</label>
+              </div>
+              <input type="password" id="reset-password" class="form-control" placeholder="New password" minlength="6" />
+            </div>
+            <div class="form-group">
+              <div class="label-row">
+                <i data-lucide="lock"></i>
+                <label for="reset-confirm-password">Confirm New Password</label>
+              </div>
+              <input type="password" id="reset-confirm-password" class="form-control" placeholder="Confirm new password" minlength="6" />
+            </div>
+          </div>
+          <button type="submit" id="btn-reset" class="btn-auth">
+            Send Reset Code <i data-lucide="mail"></i>
           </button>
         </form>
 

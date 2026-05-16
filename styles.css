@@ -256,6 +256,15 @@ header {
   font-weight: 700;
   text-decoration: none;
 }
+.text-action {
+  justify-self: start;
+  margin: -6px 0 4px;
+  padding: 0;
+  background: transparent;
+  color: var(--accent-solid);
+  font-weight: 800;
+  font-size: 0.9rem;
+}
 .password-hint {
   display: block;
   margin-top: 6px;

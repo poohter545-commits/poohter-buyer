@@ -7,6 +7,7 @@ const state = {
   user: readJson("poohterBuyerUser", null),
   authMode: "login",
   pendingCheckout: false,
+  resetOtpSent: false,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -138,6 +139,7 @@ function showAuth(mode = "login", pendingCheckout = false) {
   $("#auth-overlay").classList.add("active");
   $("#login-form").classList.toggle("hidden", mode !== "login");
   $("#signup-form").classList.toggle("hidden", mode !== "signup");
+  $("#reset-form").classList.toggle("hidden", mode !== "reset");
   $("#toggle-auth-mode").textContent = mode === "login" ? "Need an account? Sign Up" : "Already have an account? Login";
   iconRefresh();
 }
@@ -407,6 +409,27 @@ function updateStrength(value) {
   bar.className = `strength-meter-bar ${strength === 1 ? "strength-weak" : strength === 2 ? "strength-medium" : "strength-strong"}`;
 }
 
+function setSignupOtpMode(enabled) {
+  $("#signup-otp-group").classList.toggle("hidden", !enabled);
+  $("#signup-otp").required = enabled;
+  $("#btn-signup").innerHTML = enabled
+    ? 'Verify Email & Create Account <i data-lucide="shield-check" size="18"></i>'
+    : 'Create Account <i data-lucide="arrow-right" size="18"></i>';
+  iconRefresh();
+}
+
+function setResetOtpMode(enabled) {
+  state.resetOtpSent = enabled;
+  $("#reset-otp-fields").classList.toggle("hidden", !enabled);
+  ["reset-otp", "reset-password", "reset-confirm-password"].forEach((id) => {
+    $(`#${id}`).required = enabled;
+  });
+  $("#btn-reset").innerHTML = enabled
+    ? 'Change Password <i data-lucide="shield-check"></i>'
+    : 'Send Reset Code <i data-lucide="mail"></i>';
+  iconRefresh();
+}
+
 $("#search-box").addEventListener("input", filterAndSortProducts);
 $("#sort-box").addEventListener("change", filterAndSortProducts);
 $("#signup-password").addEventListener("input", (event) => updateStrength(event.target.value));
@@ -434,15 +457,26 @@ $("#login-form").addEventListener("submit", async (event) => {
     notify(error.message, "error");
   } finally {
     button.disabled = false;
-    button.innerHTML = original;
+    if ($("#signup-otp-group").classList.contains("hidden")) {
+      button.innerHTML = original;
+    } else {
+      setSignupOtpMode(true);
+    }
     iconRefresh();
   }
+});
+
+$("#forgot-password-link").addEventListener("click", () => {
+  $("#reset-email").value = $("#login-email").value;
+  setResetOtpMode(false);
+  showAuth("reset", state.pendingCheckout);
 });
 
 $("#signup-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const password = $("#signup-password").value;
   const confirmPassword = $("#signup-confirm-password").value;
+  const isOtpStep = !$("#signup-otp-group").classList.contains("hidden");
 
   if (password !== confirmPassword) {
     $("#confirm-password-hint").style.display = "block";
@@ -458,19 +492,32 @@ $("#signup-form").addEventListener("submit", async (event) => {
   const button = $("#btn-signup");
   const original = button.innerHTML;
   button.disabled = true;
-  button.textContent = "Creating...";
+  button.textContent = isOtpStep ? "Verifying..." : "Sending OTP...";
 
   try {
-    const data = await api("/auth/signup", "POST", {
-      name: $("#signup-name").value,
-      email: $("#signup-email").value,
-      phone: $("#signup-phone").value,
-      address: $("#signup-address").value,
-      password,
-      confirmPassword,
-      role: "buyer",
-    });
+    const email = $("#signup-email").value;
+    const data = isOtpStep
+      ? await api("/auth/signup/verify", "POST", {
+        email,
+        otp: $("#signup-otp").value,
+      })
+      : await api("/auth/signup", "POST", {
+        name: $("#signup-name").value,
+        email,
+        phone: $("#signup-phone").value,
+        address: $("#signup-address").value,
+        password,
+        confirmPassword,
+        role: "buyer",
+      });
+    if (data.requiresOtp) {
+      setSignupOtpMode(true);
+      notify(data.message || "OTP sent to your email.", "success");
+      return;
+    }
     setSession(data);
+    event.currentTarget.reset();
+    setSignupOtpMode(false);
     closeAuth();
     notify("Registration successful!", "success");
     if (state.pendingCheckout) {
@@ -482,6 +529,47 @@ $("#signup-form").addEventListener("submit", async (event) => {
   } finally {
     button.disabled = false;
     button.innerHTML = original;
+    iconRefresh();
+  }
+});
+
+$("#reset-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const button = $("#btn-reset");
+  button.disabled = true;
+  button.textContent = state.resetOtpSent ? "Changing..." : "Sending...";
+
+  try {
+    const email = $("#reset-email").value;
+    if (!state.resetOtpSent) {
+      const data = await api("/auth/password/forgot", "POST", { email, accountType: "buyer" });
+      setResetOtpMode(true);
+      notify(data.message || "Reset OTP sent to your email.", "success");
+      return;
+    }
+
+    const password = $("#reset-password").value;
+    const confirmPassword = $("#reset-confirm-password").value;
+    if (password !== confirmPassword) {
+      notify("Passwords do not match.", "error");
+      return;
+    }
+    await api("/auth/password/reset", "POST", {
+      email,
+      accountType: "buyer",
+      otp: $("#reset-otp").value,
+      password,
+      confirmPassword,
+    });
+    event.currentTarget.reset();
+    setResetOtpMode(false);
+    showAuth("login", state.pendingCheckout);
+    notify("Password changed. Please login with your new password.", "success");
+  } catch (error) {
+    notify(error.message, "error");
+  } finally {
+    button.disabled = false;
+    setResetOtpMode(state.resetOtpSent);
     iconRefresh();
   }
 });
