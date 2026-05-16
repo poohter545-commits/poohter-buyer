@@ -457,11 +457,7 @@ $("#login-form").addEventListener("submit", async (event) => {
     notify(error.message, "error");
   } finally {
     button.disabled = false;
-    if ($("#signup-otp-group").classList.contains("hidden")) {
-      button.innerHTML = original;
-    } else {
-      setSignupOtpMode(true);
-    }
+    button.innerHTML = original;
     iconRefresh();
   }
 });
@@ -528,7 +524,11 @@ $("#signup-form").addEventListener("submit", async (event) => {
     notify(error.message, "error");
   } finally {
     button.disabled = false;
-    button.innerHTML = original;
+    if ($("#signup-otp-group").classList.contains("hidden")) {
+      button.innerHTML = original;
+    } else {
+      setSignupOtpMode(true);
+    }
     iconRefresh();
   }
 });
