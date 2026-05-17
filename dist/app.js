@@ -8,6 +8,8 @@ const state = {
   authMode: "login",
   pendingCheckout: false,
   resetOtpSent: false,
+  otpTimers: {},
+  otpResends: { signup: 0, reset: 0 },
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -410,8 +412,10 @@ function updateStrength(value) {
 }
 
 function setSignupOtpMode(enabled) {
+  const wasEnabled = !$("#signup-otp-group").classList.contains("hidden");
   $("#signup-otp-group").classList.toggle("hidden", !enabled);
   $("#signup-otp").required = enabled;
+  if (enabled && !wasEnabled) startOtpCooldown("signup");
   $("#btn-signup").innerHTML = enabled
     ? 'Verify Email & Create Account <i data-lucide="shield-check" size="18"></i>'
     : 'Create Account <i data-lucide="arrow-right" size="18"></i>';
@@ -419,15 +423,59 @@ function setSignupOtpMode(enabled) {
 }
 
 function setResetOtpMode(enabled) {
+  const wasEnabled = state.resetOtpSent;
   state.resetOtpSent = enabled;
   $("#reset-otp-fields").classList.toggle("hidden", !enabled);
   ["reset-otp", "reset-password", "reset-confirm-password"].forEach((id) => {
     $(`#${id}`).required = enabled;
   });
+  if (enabled && !wasEnabled) startOtpCooldown("reset");
   $("#btn-reset").innerHTML = enabled
     ? 'Change Password <i data-lucide="shield-check"></i>'
     : 'Send Reset Code <i data-lucide="mail"></i>';
   iconRefresh();
+}
+
+function startOtpCooldown(kind, seconds = 60) {
+  const button = $(`#${kind}-resend-otp`);
+  if (!button) return;
+  window.clearInterval(state.otpTimers[kind]);
+  let remaining = seconds;
+  button.disabled = true;
+  button.textContent = `Resend OTP in ${remaining}s`;
+  state.otpTimers[kind] = window.setInterval(() => {
+    remaining -= 1;
+    if (remaining <= 0) {
+      window.clearInterval(state.otpTimers[kind]);
+      const used = state.otpResends[kind] || 0;
+      button.disabled = used >= 5;
+      button.textContent = used >= 5 ? "Resend limit reached" : `Resend OTP (${used}/5)`;
+      return;
+    }
+    button.textContent = `Resend OTP in ${remaining}s`;
+  }, 1000);
+}
+
+async function resendOtp(kind) {
+  const email = kind === "signup" ? $("#signup-email").value : $("#reset-email").value;
+  if (!email) return notify("Enter your email before resending OTP.", "error");
+  if ((state.otpResends[kind] || 0) >= 5) return notify("OTP resend limit reached.", "error");
+  const button = $(`#${kind}-resend-otp`);
+  button.disabled = true;
+  button.textContent = "Resending...";
+  try {
+    await api("/auth/otp/resend", "POST", {
+      email,
+      accountType: "buyer",
+      purpose: kind === "signup" ? "signup" : "password_reset",
+    });
+    state.otpResends[kind] = (state.otpResends[kind] || 0) + 1;
+    notify("A new OTP has been sent to your email.", "success");
+    startOtpCooldown(kind);
+  } catch (error) {
+    notify(error.message, "error");
+    startOtpCooldown(kind, 5);
+  }
 }
 
 $("#search-box").addEventListener("input", filterAndSortProducts);
@@ -508,6 +556,7 @@ $("#signup-form").addEventListener("submit", async (event) => {
       });
     if (data.requiresOtp) {
       setSignupOtpMode(true);
+      state.otpResends.signup = 0;
       notify(data.message || "OTP sent to your email.", "success");
       return;
     }
@@ -544,6 +593,7 @@ $("#reset-form").addEventListener("submit", async (event) => {
     if (!state.resetOtpSent) {
       const data = await api("/auth/password/forgot", "POST", { email, accountType: "buyer" });
       setResetOtpMode(true);
+      state.otpResends.reset = 0;
       notify(data.message || "Reset OTP sent to your email.", "success");
       return;
     }
@@ -578,6 +628,9 @@ $("#toggle-auth-mode").addEventListener("click", (event) => {
   event.preventDefault();
   showAuth(state.authMode === "login" ? "signup" : "login", state.pendingCheckout);
 });
+
+$("#signup-resend-otp").addEventListener("click", () => resendOtp("signup"));
+$("#reset-resend-otp").addEventListener("click", () => resendOtp("reset"));
 
 document.addEventListener("click", (event) => {
   const button = event.target.closest("button");

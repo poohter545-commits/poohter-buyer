@@ -273,6 +273,21 @@ header {
   font-style: italic;
   line-height: 1.4;
 }
+.resend-otp-btn {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--accent-solid);
+  font-weight: 800;
+}
+.resend-otp-btn:disabled {
+  cursor: not-allowed;
+  color: var(--text-muted);
+  background: var(--bg-soft);
+}
 .error-hint { display: none; color: var(--danger); }
 .strength-meter {
   display: none;
