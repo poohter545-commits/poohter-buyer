@@ -119,6 +119,9 @@ function renderAuthState() {
 }
 
 function setSession(data) {
+  if (!data?.token || !data?.user) {
+    throw new Error(data?.message || "Account created, but login details were not returned. Please login manually.");
+  }
   state.token = data.token || "";
   state.user = data.user || null;
   localStorage.setItem("poohterBuyerToken", state.token);
