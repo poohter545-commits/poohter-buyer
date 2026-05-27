@@ -439,6 +439,33 @@ function normalizeCartItem(item = {}) {
   };
 }
 
+function normalizeCartResponse(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.cart)) return data.cart;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.data)) return data.data;
+  if (data == null) return [];
+
+  console.warn("[Buyer cart] Unexpected cart response, using empty cart", {
+    responseType: typeof data,
+    keys: isObject(data) ? Object.keys(data) : [],
+  });
+  return [];
+}
+
+function normalizeOrdersResponse(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.orders)) return data.orders;
+  if (Array.isArray(data?.data)) return data.data;
+  if (data == null) return [];
+
+  console.warn("[Buyer orders] Unexpected orders response, using empty order list", {
+    responseType: typeof data,
+    keys: isObject(data) ? Object.keys(data) : [],
+  });
+  return [];
+}
+
 function mergeCartItems(...cartGroups) {
   const byProductId = new Map();
 
@@ -932,12 +959,12 @@ async function syncCartToServer() {
 async function loadServerCart({ mergeLocal = false } = {}) {
   if (!state.token) return;
 
-  const remoteCart = (await api("/cart")).map(normalizeCartItem);
+  const remoteCart = normalizeCartResponse(await api("/cart")).map(normalizeCartItem);
   if (mergeLocal && state.cart.length) {
     state.cart = mergeCartItems(remoteCart, state.cart);
     saveCart();
     await syncCartToServer();
-    state.cart = (await api("/cart")).map(normalizeCartItem);
+    state.cart = normalizeCartResponse(await api("/cart")).map(normalizeCartItem);
   } else {
     state.cart = remoteCart;
   }
@@ -984,7 +1011,7 @@ async function loadOrders() {
   container.innerHTML = "<div class='loader'>Synchronizing your history...</div>";
 
   try {
-    const orders = await api("/orders");
+    const orders = normalizeOrdersResponse(await api("/orders"));
     if (!orders.length) {
       container.innerHTML = "<div class='empty-state'>You have not placed any orders yet.</div>";
       return;
@@ -1141,7 +1168,7 @@ $("#login-form").addEventListener("submit", async (event) => {
     try {
       await loadServerCart({ mergeLocal: true });
     } catch (cartError) {
-      notify(`Logged in, but cart sync failed: ${cartError.message}`, "error");
+      console.warn("[Buyer login] Cart sync failed after login", cartError);
     }
     closeAuth();
     notify("Welcome back!", "success");
@@ -1244,7 +1271,7 @@ $("#signup-form").addEventListener("submit", async (event) => {
     try {
       await loadServerCart({ mergeLocal: true });
     } catch (cartError) {
-      notify(`Registered, but cart sync failed: ${cartError.message}`, "error");
+      console.warn("[Buyer signup] Cart sync failed after registration", cartError);
     }
     event.currentTarget.reset();
     setSignupOtpMode(false);
