@@ -355,6 +355,35 @@ function notify(message, type = "error") {
   }, 4000);
 }
 
+function isObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function summarizeAuthResponse(data = {}) {
+  return {
+    responsePresent: isObject(data),
+    message: isObject(data) ? data.message || "" : "",
+    requiresOtp: Boolean(data?.requiresOtp),
+    userPresent: Boolean(data?.user),
+    userId: data?.user?.id ?? null,
+    userEmail: data?.user?.email ?? null,
+    tokenPresent: typeof data?.token === "string" && data.token.length > 0,
+    tokenLength: typeof data?.token === "string" ? data.token.length : 0,
+  };
+}
+
+function requireObjectResponse(data, fallbackMessage) {
+  if (isObject(data)) return data;
+  console.error("[Buyer auth] Empty or invalid API response", { data });
+  throw new Error(fallbackMessage || "Poohter returned an empty response. Please try again.");
+}
+
+function setButtonLoading(button, label) {
+  button.disabled = true;
+  button.innerHTML = `<i data-lucide="loader-2" class="animate-spin"></i> ${label}`;
+  iconRefresh();
+}
+
 async function api(endpoint, method = "GET", body = null) {
   const headers = { "Content-Type": "application/json" };
   if (state.token) headers.Authorization = `Bearer ${state.token}`;
@@ -382,7 +411,10 @@ async function api(endpoint, method = "GET", body = null) {
     clearSession();
     throw new Error("Please login to continue.");
   }
-  if (!response.ok) throw new Error(data.error || data.message || "Request failed");
+  if (!response.ok) {
+    const message = isObject(data) ? data.error || data.message : "";
+    throw new Error(message || "Request failed");
+  }
   return data;
 }
 
@@ -464,11 +496,19 @@ function renderAuthState() {
 }
 
 function setSession(data) {
-  if (!data?.token || !data?.user) {
-    throw new Error(data?.message || "Account created, but login details were not returned. Please login manually.");
+  const authData = requireObjectResponse(
+    data,
+    "Account created, but Poohter did not return login details. Please login manually."
+  );
+  const token = typeof authData.token === "string" ? authData.token : "";
+  const user = isObject(authData.user) ? authData.user : null;
+  console.log("[Buyer auth] session/token creation", summarizeAuthResponse(authData));
+
+  if (!token || !user) {
+    throw new Error(authData.message || "Account created, but login details were not returned. Please login manually.");
   }
-  state.token = data.token || "";
-  state.user = data.user || null;
+  state.token = token;
+  state.user = user;
   localStorage.setItem("poohterBuyerToken", state.token);
   writeJson("poohterBuyerUser", state.user);
   renderAuthState();
@@ -1143,18 +1183,38 @@ $("#signup-form").addEventListener("submit", async (event) => {
   }
 
   const button = $("#btn-signup");
-  const original = button.innerHTML;
-  button.disabled = true;
-  button.textContent = isOtpStep ? "Verifying..." : "Sending OTP...";
+  setButtonLoading(button, isOtpStep ? "Verifying..." : "Sending OTP...");
 
   try {
-    const email = $("#signup-email").value;
-    const data = isOtpStep
-      ? await api("/auth/signup/verify", "POST", {
+    const email = $("#signup-email").value.trim();
+    const otp = $("#signup-otp").value.trim();
+
+    console.log("[Buyer signup] OTP submit", {
+      isOtpStep,
+      email,
+      otpLength: otp.length,
+      passwordPresent: Boolean(password),
+      confirmPasswordPresent: Boolean(confirmPassword),
+    });
+
+    if (isOtpStep && !otp) {
+      notify("Enter the OTP from your email to verify your account.", "error");
+      return;
+    }
+
+    let data;
+    if (isOtpStep) {
+      data = requireObjectResponse(
+        await api("/auth/signup/verify", "POST", {
         email,
-        otp: $("#signup-otp").value,
-      })
-      : await api("/auth/signup", "POST", {
+          otp,
+        }),
+        "Email verification returned an empty response. Please try again."
+      );
+      console.log("[Buyer signup] verify API response", summarizeAuthResponse(data));
+    } else {
+      data = requireObjectResponse(
+        await api("/auth/signup", "POST", {
         name: $("#signup-name").value,
         email,
         phone: $("#signup-phone").value,
@@ -1162,13 +1222,24 @@ $("#signup-form").addEventListener("submit", async (event) => {
         password,
         confirmPassword,
         role: "buyer",
-      });
+        }),
+        "Signup returned an empty response. Please try again."
+      );
+      console.log("[Buyer signup] create account response", summarizeAuthResponse(data));
+    }
+
     if (data.requiresOtp) {
       setSignupOtpMode(true);
       state.otpResends.signup = 0;
       notify(data.message || "OTP sent to your email.", "success");
       return;
     }
+
+    if (!data.user || !data.token) {
+      console.error("[Buyer signup] Missing session data after verification", summarizeAuthResponse(data));
+      throw new Error(data.message || "Email verified, but login session was not returned. Please login manually.");
+    }
+
     setSession(data);
     try {
       await loadServerCart({ mergeLocal: true });
@@ -1189,7 +1260,7 @@ $("#signup-form").addEventListener("submit", async (event) => {
   } finally {
     button.disabled = false;
     if ($("#signup-otp-group").classList.contains("hidden")) {
-      button.innerHTML = original;
+      setSignupOtpMode(false);
     } else {
       setSignupOtpMode(true);
     }
