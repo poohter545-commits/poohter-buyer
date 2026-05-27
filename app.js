@@ -12,6 +12,9 @@ const state = {
   resetOtpSent: false,
   otpTimers: {},
   otpResends: { signup: 0, reset: 0 },
+  currentProduct: null,
+  productQuantity: 1,
+  checkoutItem: null,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -108,7 +111,6 @@ function renderImageFrame(imageUrl, altText, className = "product-img", loading 
 function renderProductMedia(product = {}) {
   const image = firstProductImage(product);
   const video = firstProductVideo(product);
-  const poster = image ? ` poster="${escapeHtml(image)}"` : "";
 
   return `
     <div class="product-media">
@@ -116,11 +118,6 @@ function renderProductMedia(product = {}) {
         ${renderImageFrame(image, product.name)}
         ${video ? '<span class="product-media-chip"><i data-lucide="play-circle" size="14"></i> Video</span>' : ""}
       </div>
-      ${video ? `
-        <video class="product-video" controls preload="metadata" playsinline${poster}>
-          <source src="${escapeHtml(video)}" type="video/mp4" />
-        </video>
-      ` : ""}
     </div>
   `;
 }
@@ -132,49 +129,211 @@ function stockLabel(product = {}) {
   return "In stock";
 }
 
-function renderProductDetails(product = {}) {
+function normalizeProductResponse(data = {}) {
+  if (data?.product && typeof data.product === "object") return data.product;
+  if (data && !Array.isArray(data) && typeof data === "object" && data.id != null) return data;
+  const products = normalizeProducts(data);
+  return products[0] || null;
+}
+
+function productMaxQuantity(product = {}) {
+  const stock = Number(product.stock_quantity ?? product.stock ?? 0);
+  return Number.isFinite(stock) && stock > 0 ? stock : 1;
+}
+
+function productMediaItems(product = {}) {
   const images = productImageList(product);
-  const image = images[0] || "";
   const video = firstProductVideo(product);
-  const poster = image ? ` poster="${escapeHtml(image)}"` : "";
+  const items = images.map((url, index) => ({
+    type: "image",
+    src: url,
+    poster: url,
+    label: `Image ${index + 1}`,
+  }));
+  if (video) {
+    items.push({
+      type: "video",
+      src: video,
+      poster: images[0] || "",
+      label: "Video",
+    });
+  }
+  if (!items.length) {
+    items.push({ type: "image", src: "", poster: "", label: "Image" });
+  }
+  return items;
+}
+
+function renderProductPreview(item = {}, productName = "Product") {
+  if (item.type === "video" && item.src) {
+    const poster = item.poster ? ` poster="${escapeHtml(item.poster)}"` : "";
+    return `
+      <video class="pdp-main-video" controls autoplay playsinline preload="metadata"${poster}>
+        <source src="${escapeHtml(item.src)}" type="video/mp4" />
+      </video>
+    `;
+  }
+
+  return renderImageFrame(item.src, productName, "pdp-main-image", "eager");
+}
+
+function ratingMarkup(product = {}) {
+  const rating = Number(product.rating ?? product.average_rating ?? 0);
+  const count = Number(product.review_count ?? product.reviews_count ?? 0);
+  if (!rating) {
+    return '<span class="pdp-new-badge">New arrival</span>';
+  }
+  return `
+    <span class="pdp-rating-score">${rating.toFixed(1)}</span>
+    <span class="pdp-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+    <span class="pdp-rating-count">${count ? `${count} ratings` : "Rated product"}</span>
+  `;
+}
+
+function renderDeliveryInfo() {
+  return `
+    <aside class="pdp-sidebox">
+      <div class="sidebox-row">
+        <i data-lucide="map-pin"></i>
+        <div>
+          <strong>Delivery</strong>
+          <span>Standard delivery across Pakistan</span>
+        </div>
+      </div>
+      <div class="sidebox-row">
+        <i data-lucide="banknote"></i>
+        <div>
+          <strong>Cash on Delivery</strong>
+          <span>Pay when your parcel arrives</span>
+        </div>
+      </div>
+      <div class="sidebox-row">
+        <i data-lucide="rotate-ccw"></i>
+        <div>
+          <strong>Return Policy</strong>
+          <span>7 day return window after delivery</span>
+        </div>
+      </div>
+      <div class="sidebox-row">
+        <i data-lucide="shield-check"></i>
+        <div>
+          <strong>Warranty</strong>
+          <span>Seller warranty applies where available</span>
+        </div>
+      </div>
+    </aside>
+  `;
+}
+
+function renderProductPage(product = {}) {
+  const mediaItems = productMediaItems(product);
+  const activeItem = mediaItems[0];
+  const stock = Number(product.stock_quantity ?? product.stock ?? 0);
+  const maxQuantity = productMaxQuantity(product);
+  const quantity = Math.min(Math.max(1, Number(state.productQuantity || 1)), maxQuantity);
+  state.productQuantity = quantity;
 
   return `
-    <div class="detail-grid">
-      <div class="detail-media">
-        <div id="detail-main-image">
-          ${renderImageFrame(image, product.name, "detail-main-image", "eager")}
-        </div>
-        ${images.length > 1 ? `
-          <div class="detail-thumbs" aria-label="Product images">
-            ${images.map((thumb, index) => `
-              <button class="detail-thumb ${index === 0 ? "active" : ""}" data-detail-thumb="${escapeHtml(thumb)}" type="button" aria-label="Show image ${index + 1}">
-                ${renderImageFrame(thumb, product.name, "detail-thumb-image")}
+    <div class="pdp">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <button data-route="/" type="button">Poohter</button>
+        <span>/</span>
+        <button data-route="/" type="button">Products</button>
+        <span>/</span>
+        <strong>${escapeHtml(product.name || "Product")}</strong>
+      </nav>
+
+      <div class="pdp-layout">
+        <section class="pdp-gallery" aria-label="Product media">
+          <div id="pdp-main-preview" class="pdp-main-preview">
+            ${renderProductPreview(activeItem, product.name)}
+          </div>
+          <div class="pdp-thumbs" aria-label="Product thumbnails">
+            ${mediaItems.map((item, index) => `
+              <button
+                class="pdp-thumb ${index === 0 ? "active" : ""}"
+                data-preview-type="${escapeHtml(item.type)}"
+                data-preview-src="${escapeHtml(item.src)}"
+                data-preview-poster="${escapeHtml(item.poster || "")}"
+                type="button"
+                aria-label="${escapeHtml(item.label)}"
+              >
+                ${item.type === "video"
+                  ? `<span class="pdp-video-thumb">${renderImageFrame(item.poster, product.name, "pdp-thumb-image")}<i data-lucide="play"></i></span>`
+                  : renderImageFrame(item.src, product.name, "pdp-thumb-image")}
               </button>
             `).join("")}
           </div>
-        ` : ""}
-        ${video ? `
-          <video class="detail-video" controls preload="metadata" playsinline${poster}>
-            <source src="${escapeHtml(video)}" type="video/mp4" />
-          </video>
-        ` : ""}
+        </section>
+
+        <section class="pdp-info">
+          <h1>${escapeHtml(product.name || "Untitled Product")}</h1>
+          <div class="pdp-rating">${ratingMarkup(product)}</div>
+          <div class="pdp-price">${money(product.price)}</div>
+          <div class="pdp-stock-row">
+            <span class="stock-pill">${escapeHtml(stockLabel(product))}</span>
+            <span>${Number.isFinite(stock) ? `${stock.toLocaleString()} available` : "Stock checking"}</span>
+          </div>
+          <p class="pdp-description">${escapeHtml(product.description || "Premium quality crafted product for your daily needs.")}</p>
+          <div class="pdp-quantity-row">
+            <span>Quantity</span>
+            <div class="pdp-qty-control">
+              <button data-product-qty-delta="-1" type="button" aria-label="Decrease quantity">-</button>
+              <strong id="product-quantity">${quantity}</strong>
+              <button data-product-qty-delta="1" type="button" aria-label="Increase quantity">+</button>
+            </div>
+          </div>
+          <div class="pdp-actions">
+            <button class="btn-place-order" data-place-order="${escapeHtml(product.id)}" type="button">
+              <i data-lucide="shopping-bag"></i> Place Order
+            </button>
+            <button class="btn-add-cart" data-add-cart="${escapeHtml(product.id)}" data-use-selected-qty="true" type="button">
+              <i data-lucide="shopping-cart"></i> Add to Cart
+            </button>
+          </div>
+        </section>
+
+        ${renderDeliveryInfo()}
       </div>
-      <div class="detail-copy">
-        <div class="detail-price-row">
-          <span class="product-price">${money(product.price)}</span>
-          <span class="stock-pill">${escapeHtml(stockLabel(product))}</span>
-        </div>
-        <p class="detail-description">${escapeHtml(product.description || "Premium quality crafted product for your daily needs.")}</p>
-        <div class="detail-facts">
-          <div><span>ID</span><strong>${escapeHtml(product.product_uid || product.id || "N/A")}</strong></div>
-          <div><span>Available</span><strong>${Number(product.stock_quantity ?? product.stock ?? 0).toLocaleString()}</strong></div>
-        </div>
-        <div class="detail-actions">
-          <button class="btn-add-cart" data-add-cart="${escapeHtml(product.id)}" type="button">
-            <i data-lucide="shopping-cart"></i> Add to Cart
+    </div>
+  `;
+}
+
+function renderCheckoutPage(item = null) {
+  if (!item) {
+    return `
+      <div class="checkout-page">
+        <nav class="breadcrumb"><button data-route="/" type="button">Poohter</button><span>/</span><strong>Checkout</strong></nav>
+        <div class="empty-state">No product selected for checkout.</div>
+      </div>
+    `;
+  }
+
+  const subtotal = Number(item.product_price || 0) * Number(item.quantity || 1);
+  const total = subtotal + DEFAULT_DELIVERY_CHARGE;
+  return `
+    <div class="checkout-page">
+      <nav class="breadcrumb"><button data-route="/" type="button">Poohter</button><span>/</span><strong>Checkout</strong></nav>
+      <div class="checkout-layout">
+        <section class="checkout-summary">
+          <h1>Checkout</h1>
+          <div class="checkout-product">
+            ${renderImageFrame(item.image, item.product_name, "checkout-product-image")}
+            <div>
+              <strong>${escapeHtml(item.product_name || "Product")}</strong>
+              <span>${money(item.product_price)} x ${Number(item.quantity || 1)}</span>
+            </div>
+          </div>
+          <div class="checkout-lines">
+            <div><span>Subtotal</span><strong>${money(subtotal)}</strong></div>
+            <div><span>Shipping</span><strong>${money(DEFAULT_DELIVERY_CHARGE)}</strong></div>
+            <div class="checkout-total"><span>Total</span><strong>${money(total)}</strong></div>
+          </div>
+          <button class="btn-place-order" data-confirm-place-order type="button">
+            <i data-lucide="badge-check"></i> Place Order
           </button>
-          <button class="btn-detail-secondary" data-close-product-detail type="button">Continue Shopping</button>
-        </div>
+        </section>
+        ${renderDeliveryInfo()}
       </div>
     </div>
   `;
@@ -349,48 +508,192 @@ function toggleCart(forceOpen = null) {
   if (shouldOpen) renderCart();
 }
 
-function switchView(viewId) {
+function setActiveSection(viewId) {
+  ["shop", "orders", "product", "checkout"].forEach((section) => {
+    $(`#section-${section}`)?.classList.toggle("hidden", section !== viewId);
+  });
+  $$(".nav-link").forEach((link) => link.classList.remove("active"));
+  $(`#nav-${viewId}`)?.classList.add("active");
+}
+
+function switchView(viewId, { push = true } = {}) {
   if (viewId === "orders" && !state.token) {
     notify("Please login to view your orders.", "error");
     showAuth("login");
     return;
   }
 
-  $("#section-shop").classList.toggle("hidden", viewId !== "shop");
-  $("#section-orders").classList.toggle("hidden", viewId !== "orders");
-  $$(".nav-link").forEach((link) => link.classList.remove("active"));
-  $(`#nav-${viewId}`)?.classList.add("active");
+  if (push) {
+    window.history.pushState({}, "", viewId === "orders" ? "/orders" : "/");
+  }
+  setActiveSection(viewId);
   if (viewId === "orders") loadOrders();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-function openProductDetails(productId) {
-  const product = findProduct(productId);
-  if (!product) return notify("Product not found.", "error");
-
-  $("#detail-title").textContent = product.name || "Product Details";
-  $("#product-detail-content").innerHTML = renderProductDetails(product);
-  $("#product-detail-panel").classList.remove("hidden");
-  $("#product-detail-overlay").classList.add("active");
-  document.body.classList.add("modal-open");
-  iconRefresh();
+function navigateTo(path) {
+  window.history.pushState({}, "", path);
+  route();
 }
 
-function closeProductDetails() {
-  $("#product-detail-panel").classList.add("hidden");
-  $("#product-detail-overlay").classList.remove("active");
-  $("#product-detail-content").innerHTML = "";
-  document.body.classList.remove("modal-open");
+function navigateToProduct(productId) {
+  if (!productId) return;
+  navigateTo(`/product/${encodeURIComponent(productId)}`);
 }
 
-function setDetailImage(imageUrl) {
-  const frame = $("#detail-main-image");
+async function loadProductPage(productId) {
+  const container = $("#product-page-content");
+  setActiveSection("product");
+  container.innerHTML = '<div class="loader">Loading product details...</div>';
+  window.scrollTo({ top: 0, behavior: "smooth" });
+
+  try {
+    const data = await api(`/products/${encodeURIComponent(productId)}`);
+    const product = normalizeProductResponse(data);
+    if (!product) throw new Error("Product not found");
+    state.currentProduct = product;
+    state.productQuantity = 1;
+    container.innerHTML = renderProductPage(product);
+    iconRefresh();
+  } catch (error) {
+    container.innerHTML = `
+      <div class="product-error">
+        <h1>Product unavailable</h1>
+        <p>${escapeHtml(error.message || "Could not load product details.")}</p>
+        <button class="btn-detail-secondary" data-route="/" type="button">Back to Shop</button>
+      </div>
+    `;
+  }
+}
+
+function setProductPreview(type, src, poster = "") {
+  const frame = $("#pdp-main-preview");
   if (!frame) return;
-  frame.innerHTML = renderImageFrame(imageUrl, $("#detail-title")?.textContent || "Product", "detail-main-image", "eager");
-  $$(".detail-thumb").forEach((button) => {
-    button.classList.toggle("active", button.dataset.detailThumb === imageUrl);
+  frame.innerHTML = renderProductPreview({ type, src, poster }, state.currentProduct?.name || "Product");
+  $$(".pdp-thumb").forEach((button) => {
+    button.classList.toggle("active", button.dataset.previewType === type && button.dataset.previewSrc === src);
   });
   iconRefresh();
+}
+
+function adjustProductQuantity(delta) {
+  if (!state.currentProduct) return;
+  const maxQuantity = productMaxQuantity(state.currentProduct);
+  state.productQuantity = Math.min(maxQuantity, Math.max(1, Number(state.productQuantity || 1) + delta));
+  const quantity = $("#product-quantity");
+  if (quantity) quantity.textContent = state.productQuantity;
+}
+
+function checkoutItemFromProduct(product, quantity = 1) {
+  return normalizeCartItem({
+    ...product,
+    quantity,
+    product_id: product.id,
+    product_name: product.name,
+    product_price: product.price,
+    image: firstProductImage(product),
+  });
+}
+
+async function openCheckoutForProduct(productId, quantity = state.productQuantity) {
+  let product = state.currentProduct && String(state.currentProduct.id) === String(productId)
+    ? state.currentProduct
+    : findProduct(productId);
+
+  if (!product) {
+    const data = await api(`/products/${encodeURIComponent(productId)}`);
+    product = normalizeProductResponse(data);
+  }
+  if (!product) return notify("Product not found.", "error");
+
+  const safeQuantity = Math.min(productMaxQuantity(product), Math.max(1, Number(quantity || 1)));
+  state.checkoutItem = checkoutItemFromProduct(product, safeQuantity);
+  navigateTo(`/checkout?product=${encodeURIComponent(product.id)}&quantity=${safeQuantity}`);
+}
+
+async function loadCheckoutPage(productId = null, quantity = 1) {
+  const container = $("#checkout-page-content");
+  setActiveSection("checkout");
+  container.innerHTML = '<div class="loader">Preparing checkout...</div>';
+  window.scrollTo({ top: 0, behavior: "smooth" });
+
+  try {
+    let item = state.checkoutItem;
+    if (productId) {
+      const data = await api(`/products/${encodeURIComponent(productId)}`);
+      const product = normalizeProductResponse(data);
+      if (!product) throw new Error("Product not found");
+      item = checkoutItemFromProduct(product, Math.min(productMaxQuantity(product), Math.max(1, Number(quantity || 1))));
+      state.checkoutItem = item;
+    }
+    container.innerHTML = renderCheckoutPage(item);
+    iconRefresh();
+  } catch (error) {
+    container.innerHTML = `<div class="empty-state">${escapeHtml(error.message || "Checkout is unavailable.")}</div>`;
+  }
+}
+
+async function confirmPlaceOrder() {
+  const item = state.checkoutItem;
+  if (!item) return notify("No product selected for checkout.", "error");
+  if (!state.token) {
+    state.pendingCheckout = true;
+    notify("Login is required before placing an order.", "error");
+    showAuth("login", true);
+    return;
+  }
+
+  const button = $("[data-confirm-place-order]");
+  const original = button?.innerHTML;
+  if (button) {
+    button.disabled = true;
+    button.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i> Placing Order...';
+    iconRefresh();
+  }
+
+  const previousCart = state.cart.map((cartItem) => ({ ...cartItem }));
+  try {
+    state.cart = mergeCartItems([item]);
+    saveCart();
+    await syncCartToServer();
+    const order = await api("/checkout", "POST");
+    state.cart = [];
+    state.checkoutItem = null;
+    saveCart();
+    notify(`Order placed successfully${order.order_code ? `: ${order.order_code}` : "!"}`, "success");
+    navigateTo("/orders");
+  } catch (error) {
+    state.cart = previousCart;
+    saveCart();
+    notify(error.message, "error");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.innerHTML = original;
+      iconRefresh();
+    }
+  }
+}
+
+function route() {
+  const path = window.location.pathname.replace(/\/+$/, "") || "/";
+  if (path === "/orders") {
+    switchView("orders", { push: false });
+    return;
+  }
+  if (path === "/checkout") {
+    const params = new URLSearchParams(window.location.search);
+    loadCheckoutPage(params.get("product"), params.get("quantity") || 1);
+    return;
+  }
+
+  const productMatch = path.match(/^\/product\/([^/]+)$/);
+  if (productMatch) {
+    loadProductPage(decodeURIComponent(productMatch[1]));
+    return;
+  }
+
+  switchView("shop", { push: false });
 }
 
 async function fetchProducts() {
@@ -426,7 +729,7 @@ function filterAndSortProducts() {
 
   grid.innerHTML = products.length
     ? products.map((product) => `
-      <article class="product-card">
+      <article class="product-card" data-product-card="${escapeHtml(product.id)}" tabindex="0">
         ${renderProductMedia(product)}
         <div class="product-info">
           <h3 class="product-name">${escapeHtml(product.name || "Untitled Product")}</h3>
@@ -451,21 +754,24 @@ function findProduct(productId) {
   return state.products.find((product) => String(product.id) === String(productId));
 }
 
-async function addToCart(productId) {
-  const product = findProduct(productId);
+async function addToCart(productId, quantity = 1) {
+  const product = (state.currentProduct && String(state.currentProduct.id) === String(productId))
+    ? state.currentProduct
+    : findProduct(productId);
   if (!product) return notify("Product not found.", "error");
 
+  const addQuantity = Math.min(productMaxQuantity(product), Math.max(1, Number(quantity || 1)));
   const previousCart = state.cart.map((item) => ({ ...item }));
   const existing = state.cart.find((item) => String(item.product_id) === String(product.id));
   if (existing) {
-    existing.quantity += 1;
+    existing.quantity += addQuantity;
   } else {
     state.cart.push({
       product_id: product.id,
       product_name: product.name,
       product_price: Number(product.price || 0),
       image: firstProductImage(product),
-      quantity: 1,
+      quantity: addQuantity,
     });
   }
   saveCart();
@@ -475,7 +781,7 @@ async function addToCart(productId) {
     try {
       await api("/cart", "POST", {
         product_id: product.id,
-        quantity: 1,
+        quantity: addQuantity,
       });
       await loadServerCart();
     } catch (error) {
@@ -801,7 +1107,8 @@ $("#login-form").addEventListener("submit", async (event) => {
     notify("Welcome back!", "success");
     if (state.pendingCheckout) {
       state.pendingCheckout = false;
-      handleCheckout();
+      if (state.checkoutItem) confirmPlaceOrder();
+      else handleCheckout();
     }
   } catch (error) {
     notify(error.message, "error");
@@ -874,7 +1181,8 @@ $("#signup-form").addEventListener("submit", async (event) => {
     notify("Registration successful!", "success");
     if (state.pendingCheckout) {
       state.pendingCheckout = false;
-      handleCheckout();
+      if (state.checkoutItem) confirmPlaceOrder();
+      else handleCheckout();
     }
   } catch (error) {
     notify(error.message, "error");
@@ -941,41 +1249,59 @@ $("#reset-resend-otp").addEventListener("click", () => resendOtp("reset"));
 
 document.addEventListener("click", (event) => {
   const button = event.target.closest("button");
-  if (!button) return;
-
-  if (button.dataset.switchView) switchView(button.dataset.switchView);
-  if (button.dataset.openCart !== undefined) toggleCart(true);
-  if (button.dataset.closeCart !== undefined) toggleCart(false);
-  if (button.dataset.viewDetails) openProductDetails(button.dataset.viewDetails);
-  if (button.dataset.closeProductDetail !== undefined) closeProductDetails();
-  if (button.dataset.detailThumb) setDetailImage(button.dataset.detailThumb);
-  if (button.dataset.openAuth !== undefined) {
-    if (!state.token) {
-      showAuth("login");
-    } else if (button.id === "auth-status-button") {
-      clearSession();
-      notify("Logged out.", "success");
-      switchView("shop");
-    } else {
-      notify(`Logged in as ${state.user?.name || state.user?.email || "buyer"}.`, "success");
+  if (button) {
+    if (button.dataset.route) return navigateTo(button.dataset.route);
+    if (button.dataset.switchView) return switchView(button.dataset.switchView);
+    if (button.dataset.openCart !== undefined) return toggleCart(true);
+    if (button.dataset.closeCart !== undefined) return toggleCart(false);
+    if (button.dataset.viewDetails) return navigateToProduct(button.dataset.viewDetails);
+    if (button.dataset.previewType) return setProductPreview(button.dataset.previewType, button.dataset.previewSrc || "", button.dataset.previewPoster || "");
+    if (button.dataset.productQtyDelta) return adjustProductQuantity(Number(button.dataset.productQtyDelta));
+    if (button.dataset.placeOrder) return openCheckoutForProduct(button.dataset.placeOrder, state.productQuantity);
+    if (button.dataset.confirmPlaceOrder !== undefined) return confirmPlaceOrder();
+    if (button.dataset.openAuth !== undefined) {
+      if (!state.token) {
+        showAuth("login");
+      } else if (button.id === "auth-status-button") {
+        clearSession();
+        notify("Logged out.", "success");
+        navigateTo("/");
+      } else {
+        notify(`Logged in as ${state.user?.name || state.user?.email || "buyer"}.`, "success");
+      }
+      return;
     }
+    if (button.dataset.closeAuth !== undefined) return closeAuth();
+    if (button.dataset.scrollProducts !== undefined) return $("#product-list").scrollIntoView({ behavior: "smooth" });
+    if (button.dataset.addCart) {
+      const quantity = button.dataset.useSelectedQty ? state.productQuantity : 1;
+      return addToCart(button.dataset.addCart, quantity);
+    }
+    if (button.dataset.cartDelta) return updateQty(button.dataset.productId, Number(button.dataset.cartDelta));
+    if (button.dataset.removeCart) return removeFromCart(button.dataset.removeCart);
+    if (button.dataset.togglePassword) return togglePassword(button.dataset.togglePassword, button);
   }
-  if (button.dataset.closeAuth !== undefined) closeAuth();
-  if (button.dataset.scrollProducts !== undefined) $("#product-list").scrollIntoView({ behavior: "smooth" });
-  if (button.dataset.addCart) addToCart(button.dataset.addCart);
-  if (button.dataset.cartDelta) updateQty(button.dataset.productId, Number(button.dataset.cartDelta));
-  if (button.dataset.removeCart) removeFromCart(button.dataset.removeCart);
-  if (button.dataset.togglePassword) togglePassword(button.dataset.togglePassword, button);
+
+  const card = event.target.closest("[data-product-card]");
+  if (card) navigateToProduct(card.dataset.productCard);
 });
 
 $("#cart-overlay").addEventListener("click", () => toggleCart(false));
 $("#auth-overlay").addEventListener("click", closeAuth);
-$("#product-detail-overlay").addEventListener("click", closeProductDetails);
 $("#btn-side-checkout").addEventListener("click", handleCheckout);
+window.addEventListener("popstate", route);
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const card = event.target.closest?.("[data-product-card]");
+  if (!card) return;
+  event.preventDefault();
+  navigateToProduct(card.dataset.productCard);
+});
 
 window.addEventListener("load", () => {
   renderAuthState();
   renderCart();
+  route();
   fetchProducts();
   if (state.token) {
     loadServerCart().catch((error) => notify(error.message, "error"));
