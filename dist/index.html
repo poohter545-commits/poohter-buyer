@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Poohter — A Trust Where Quality Matters. Shop premium products with fast delivery across Pakistan." />
+    <meta name="theme-color" content="#7c3aed" />
+    <title>Poohter | A Trust Where Quality Matters</title>
+    <link rel="preconnect" href="https://api.poohter.com" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@700;800;900&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css?v=luxury-20260619" />
+    <script src="https://unpkg.com/lucide@latest" defer></script>
+  </head>
+  <body>
+    <div id="alert-container"></div>
+    <div id="cart-overlay" class="overlay"></div>
+    <div id="auth-overlay" class="overlay"></div>
+
+    <!-- Announcement bar -->
+    <div class="announce-bar" role="marquee" aria-label="Store announcements">
+      <div class="announce-marquee">
+        <span>Free Shipping on Orders Above Rs 2,000</span>
+        <span>100% Authentic Products Guaranteed</span>
+        <span>Easy 7-Day Returns</span>
+        <span>Secure Payments — Your Data is Safe</span>
+        <span>Free Shipping on Orders Above Rs 2,000</span>
+        <span>100% Authentic Products Guaranteed</span>
+        <span>Easy 7-Day Returns</span>
+        <span>Secure Payments — Your Data is Safe</span>
+      </div>
+    </div>
+
+    <!-- Cart sidebar -->
+    <aside id="cart-sidebar" class="sidebar" aria-label="Shopping cart">
+      <div class="sidebar-header">
+        <h2>Shopping Cart</h2>
+        <button class="icon-button" data-close-cart type="button" aria-label="Close cart">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div id="sidebar-items" class="sidebar-content"></div>
+      <div class="cart-footer">
+        <div class="cart-total-row"><span>Subtotal</span><span id="side-subtotal">Rs 0</span></div>
+        <div class="cart-total-row"><span>Shipping</span><span id="side-shipping">Rs 99</span></div>
+        <div class="cart-total-row total"><span>Total</span><span id="side-total">Rs 0</span></div>
+        <button class="btn-checkout" id="btn-side-checkout" type="button">Checkout Now</button>
+      </div>
+    </aside>
+
+    <!-- Auth panel -->
+    <section id="auth-panel" class="auth-wrapper hidden" aria-label="Buyer authentication">
+      <div class="auth-card">
+        <button class="auth-close icon-button" data-close-auth type="button" aria-label="Close login">
+          <i data-lucide="x"></i>
+        </button>
+        <div class="brand-header">
+          <div class="logo-row">
+            <i data-lucide="shopping-bag"></i>
+            <span>POOHTER</span>
+          </div>
+          <p class="tagline">A Trust Where Quality Matters</p>
+        </div>
+
+        <form id="login-form" class="auth-form">
+          <h2>Welcome Back</h2>
+          <div class="form-group">
+            <div class="label-row">
+              <i data-lucide="mail"></i>
+              <label for="login-email">Email Address</label>
+            </div>
+            <input type="email" id="login-email" class="form-control" placeholder="example@mail.com" required />
+          </div>
+          <div class="form-group">
+            <div class="label-row">
+              <i data-lucide="lock"></i>
+              <label for="login-password">Password</label>
+            </div>
+            <div class="input-wrapper">
+              <input type="password" id="login-password" class="form-control" placeholder="Your password" required />
+              <button class="toggle-password" data-toggle-password="login-password" type="button" aria-label="Show password">
+                <i data-lucide="eye"></i>
+              </button>
+            </div>
+          </div>
+          <button class="text-action" id="forgot-password-link" type="button">Forgot password?</button>
+          <button type="submit" id="btn-login" class="btn-auth">
+            Sign In <i data-lucide="arrow-right" size="18"></i>
+          </button>
+        </form>
+
+        <form id="signup-form" class="auth-form hidden">
+          <h2>Create Account</h2>
+          <div class="form-group">
+            <div class="label-row">
+              <i data-lucide="user"></i>
+              <label for="signup-name">Full Name</label>
+            </div>
+            <input type="text" id="signup-name" class="form-control" placeholder="John Doe" required />
+          </div>
+          <div class="form-group">
+            <div class="label-row">
+              <i data-lucide="mail"></i>
+              <label for="signup-email">Email Address</label>
+            </div>
+            <input type="email" id="signup-email" class="form-control" placeholder="example@mail.com" required />
+          </div>
+          <div class="form-group">
+            <div class="label-row">
+              <i data-lucide="phone"></i>
+              <label for="signup-phone">Phone Number</label>
+            </div>
+            <input type="text" id="signup-phone" class="form-control" placeholder="03001234567" required />
+          </div>
+          <div class="form-group">
+            <div class="label-row">
+              <i data-lucide="map-pin"></i>
+              <label for="signup-address">Shipping Address</label>
+            </div>
+            <input type="text" id="signup-address" class="form-control" placeholder="House #, Street, City" required />
+          </div>
+          <div class="form-group">
+            <div class="label-row">
+              <i data-lucide="lock"></i>
+              <label for="signup-password">Password</label>
+            </div>
+            <div class="input-wrapper">
+              <input type="password" id="signup-password" class="form-control" placeholder="Min. 6 characters" required minlength="6" />
+              <button class="toggle-password" data-toggle-password="signup-password" type="button" aria-label="Show password">
+                <i data-lucide="eye"></i>
+              </button>
+            </div>
+            <div class="strength-meter" id="signup-strength"><div class="strength-meter-bar"></div></div>
+            <small class="password-hint">Must contain at least 1 number and 1 special character.</small>
+          </div>
+          <div class="form-group">
+            <div class="label-row">
+              <i data-lucide="lock"></i>
+              <label for="signup-confirm-password">Confirm Password</label>
+            </div>
+            <div class="input-wrapper">
+              <input type="password" id="signup-confirm-password" class="form-control" placeholder="Repeat password" required minlength="6" />
+              <button class="toggle-password" data-toggle-password="signup-confirm-password" type="button" aria-label="Show password">
+                <i data-lucide="eye"></i>
+              </button>
+            </div>
+            <small class="password-hint error-hint" id="confirm-password-hint">Passwords do not match.</small>
+          </div>
+          <div class="form-group hidden" id="signup-otp-group">
+            <div class="label-row">
+              <i data-lucide="shield-check"></i>
+              <label for="signup-otp">Email OTP</label>
+            </div>
+            <input type="text" id="signup-otp" class="form-control" placeholder="6 digit code" inputmode="numeric" maxlength="6" />
+            <small class="password-hint">Check your email for the Poohter verification code.</small>
+            <button class="resend-otp-btn" id="signup-resend-otp" type="button" disabled>Resend OTP in 60s</button>
+          </div>
+          <button type="submit" id="btn-signup" class="btn-auth">
+            Create Account <i data-lucide="arrow-right" size="18"></i>
+          </button>
+        </form>
+
+        <form id="reset-form" class="auth-form hidden">
+          <h2>Reset Password</h2>
+          <div class="form-group">
+            <div class="label-row">
+              <i data-lucide="mail"></i>
+              <label for="reset-email">Email Address</label>
+            </div>
+            <input type="email" id="reset-email" class="form-control" placeholder="example@mail.com" required />
+          </div>
+          <div class="hidden" id="reset-otp-fields">
+            <div class="form-group">
+              <div class="label-row">
+                <i data-lucide="shield-check"></i>
+                <label for="reset-otp">Email OTP</label>
+              </div>
+              <input type="text" id="reset-otp" class="form-control" placeholder="6 digit code" inputmode="numeric" maxlength="6" />
+              <button class="resend-otp-btn" id="reset-resend-otp" type="button" disabled>Resend OTP in 60s</button>
+            </div>
+            <div class="form-group">
+              <div class="label-row">
+                <i data-lucide="lock"></i>
+                <label for="reset-password">New Password</label>
+              </div>
+              <div class="input-wrapper">
+                <input type="password" id="reset-password" class="form-control" placeholder="New password" minlength="6" />
+                <button class="toggle-password" data-toggle-password="reset-password" type="button" aria-label="Show password">
+                  <i data-lucide="eye"></i>
+                </button>
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="label-row">
+                <i data-lucide="lock"></i>
+                <label for="reset-confirm-password">Confirm New Password</label>
+              </div>
+              <div class="input-wrapper">
+                <input type="password" id="reset-confirm-password" class="form-control" placeholder="Confirm new password" minlength="6" />
+                <button class="toggle-password" data-toggle-password="reset-confirm-password" type="button" aria-label="Show password">
+                  <i data-lucide="eye"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          <button type="submit" id="btn-reset" class="btn-auth">
+            Send Reset Code <i data-lucide="mail"></i>
+          </button>
+        </form>
+
+        <p class="auth-toggle">
+          <a href="#" id="toggle-auth-mode">Need an account? Sign Up</a>
+        </p>
+      </div>
+    </section>
+
+    <!-- Main app -->
+    <div id="view-app">
+      <header>
+        <div class="container nav-inner">
+          <button class="logo" data-switch-view="shop" type="button">POOHTER</button>
+          <nav class="nav-links" id="main-nav-links" aria-label="Primary navigation">
+            <button id="nav-shop" class="nav-link active" data-switch-view="shop" type="button">
+              <i data-lucide="home"></i> Shop
+            </button>
+            <button id="nav-orders" class="nav-link" data-switch-view="orders" type="button">
+              <i data-lucide="receipt"></i> Orders
+            </button>
+            <button class="nav-link cart-trigger" data-open-cart type="button">
+              <i data-lucide="shopping-cart"></i> Cart
+              <span id="cart-badge-count" class="cart-badge">0</span>
+            </button>
+            <button class="profile-btn" id="user-profile-icon" data-open-auth type="button" aria-label="Account">G</button>
+            <button id="auth-status-button" class="btn-logout" data-open-auth type="button">Login</button>
+          </nav>
+        </div>
+      </header>
+
+      <main class="container">
+        <section id="section-shop">
+          <!-- Hero -->
+          <div class="hero">
+            <!-- Floating background orbs -->
+            <div class="hero-orb-3"></div>
+            <!-- Twinkling particles -->
+            <div class="hero-particles" aria-hidden="true">
+              <span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <!-- Hero image blob (legacy placeholder) -->
+            <div class="hero-img-blob"></div>
+            <!-- Content -->
+            <div class="hero-content">
+              <div class="hero-eyebrow">Exclusive Collections 2026</div>
+              <h1>Premium Style<br/>For Everyone</h1>
+              <p>Explore our curated selection of high-quality essentials<br/>designed for the modern Pakistani lifestyle.</p>
+              <div class="hero-cta-row">
+                <button class="btn-hero" data-scroll-products type="button">
+                  <i data-lucide="sparkles" style="width:18px;height:18px"></i>
+                  Shop New Arrivals
+                </button>
+                <button class="btn-hero-ghost" data-switch-view="orders" type="button">
+                  Track Orders
+                </button>
+              </div>
+              <div class="hero-stats">
+                <div>
+                  <div class="hero-stat-value">50K+</div>
+                  <div class="hero-stat-label">Happy Buyers</div>
+                </div>
+                <div>
+                  <div class="hero-stat-value">2K+</div>
+                  <div class="hero-stat-label">Products</div>
+                </div>
+                <div>
+                  <div class="hero-stat-value">4.9★</div>
+                  <div class="hero-stat-label">Average Rating</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Trust strip -->
+          <div class="trust-strip">
+            <div class="trust-item">
+              <i data-lucide="shield-check"></i>
+              <span>100% Authentic</span>
+            </div>
+            <div class="trust-sep"></div>
+            <div class="trust-item">
+              <i data-lucide="truck"></i>
+              <span>Fast Nationwide Delivery</span>
+            </div>
+            <div class="trust-sep"></div>
+            <div class="trust-item">
+              <i data-lucide="rotate-ccw"></i>
+              <span>Easy 7-Day Returns</span>
+            </div>
+            <div class="trust-sep"></div>
+            <div class="trust-item">
+              <i data-lucide="lock"></i>
+              <span>Secure Payments</span>
+            </div>
+            <div class="trust-sep"></div>
+            <div class="trust-item">
+              <i data-lucide="headphones"></i>
+              <span>24/7 Support</span>
+            </div>
+          </div>
+
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">Featured Products</h2>
+              <p class="section-sub">Handpicked premium items just for you</p>
+            </div>
+            <div class="filter-bar">
+              <i data-lucide="search"></i>
+              <input type="text" id="search-box" class="search-input" placeholder="Search products..." />
+              <select id="sort-box" class="sort-select">
+                <option value="newest">Newest</option>
+                <option value="low">Price: Low to High</option>
+                <option value="high">Price: High to Low</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="shop-loader" class="product-grid"></div>
+          <div id="product-list" class="product-grid"></div>
+        </section>
+
+        <section id="section-orders" class="hidden">
+          <h1 class="section-title" style="margin:2rem 0 1.5rem">Order History</h1>
+          <div id="orders-list"></div>
+        </section>
+
+        <section id="section-product" class="hidden">
+          <div id="product-page-content"></div>
+        </section>
+
+        <section id="section-checkout" class="hidden">
+          <div id="checkout-page-content"></div>
+        </section>
+      </main>
+
+      <!-- Footer -->
+      <footer class="buyer-footer container">
+        <p>© 2026 <strong>POOHTER</strong> — A Trust Where Quality Matters &nbsp;·&nbsp; Pakistan's Premium Shopping Destination</p>
+      </footer>
+    </div>
+
+    <div class="poohter-contact-widget" data-account-type="buyer"></div>
+    <script>
+      window.POOHTER_ACCOUNT_TYPE = "buyer";
+      window.POOHTER_WHATSAPP_NUMBER = window.POOHTER_WHATSAPP_NUMBER || "923000000000";
+    </script>
+    <script src="/app.js?v=luxury-20260619" defer></script>
+  </body>
+</html>
