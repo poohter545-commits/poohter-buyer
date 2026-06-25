@@ -1610,6 +1610,189 @@ header.scrolled {
 }
 
 /* ============================================================
+   3D UI LAYER
+   ============================================================ */
+
+/* Hero Three.js canvas */
+#hero-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  opacity: 0.55;
+  pointer-events: none;
+}
+.hero-content   { z-index: 3; }
+.hero-orb-3,
+.hero-particles { z-index: 2; }
+.hero::before,
+.hero::after    { z-index: 0; }
+
+/* 3D scene wrapper on product grid */
+.product-grid {
+  perspective: 1400px;
+  perspective-origin: 50% 30%;
+}
+
+/* Card 3D tilt — transform applied via JS */
+.product-card {
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition: transform 0.15s ease, box-shadow 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.3s;
+}
+/* Reset hover transform (JS drives it instead) */
+.product-card:hover {
+  transform: none;
+}
+/* Tilt-driven glow highlight */
+.product-card .card-shine {
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  pointer-events: none;
+  background: radial-gradient(circle at var(--mx,50%) var(--my,50%), rgba(255,255,255,0.18) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 5;
+}
+.product-card:hover .card-shine { opacity: 1; }
+
+/* 3D lift on product info area (depth layering) */
+.product-info  { transform: translateZ(4px); }
+.product-img   { transform: translateZ(0px); }
+.btn-add-cart  { transform: translateZ(8px); transform-style: preserve-3d; }
+.product-price { transform: translateZ(6px); }
+
+/* PRO chip floats above */
+.product-img::after { transform: translateZ(24px); }
+
+/* 3D section titles */
+.section-title {
+  text-shadow: 0 8px 32px rgba(124, 58, 237, 0.18);
+  transform: translateZ(0);
+}
+
+/* Hero content 3D depth */
+.hero-eyebrow {
+  transform: translateZ(30px);
+  transform-style: preserve-3d;
+}
+.hero h1 {
+  transform: translateZ(20px);
+  transform-style: preserve-3d;
+  text-shadow: 0 4px 24px rgba(124, 58, 237, 0.4), 0 0 80px rgba(236, 72, 153, 0.2);
+}
+.hero p         { transform: translateZ(12px); }
+.hero-cta-row   { transform: translateZ(18px); }
+.hero-stats     { transform: translateZ(10px); }
+
+/* 3D floating cards in trust strip */
+.trust-strip {
+  transform-style: preserve-3d;
+  transform: perspective(800px) rotateX(1.5deg);
+}
+.trust-item {
+  transform: translateZ(6px);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.trust-item:hover { transform: translateZ(18px) scale(1.06); }
+
+/* Nav 3D depth on logo */
+.logo {
+  transform: perspective(400px) translateZ(0);
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.3s;
+}
+.logo:hover {
+  transform: perspective(400px) translateZ(10px) scale(1.04);
+  filter: drop-shadow(0 0 28px rgba(124, 58, 237, 0.6));
+}
+
+/* Auth card 3D entrance */
+.auth-card {
+  transform-style: preserve-3d;
+}
+@keyframes authCardIn {
+  from { transform: perspective(800px) rotateX(8deg) scale(0.88) translateY(30px); opacity: 0; }
+  to   { transform: perspective(800px) rotateX(0deg) scale(1) translateY(0); opacity: 1; }
+}
+
+/* 3D button press depth */
+.btn-hero:active     { transform: translateY(1px) scale(0.98) translateZ(-4px); }
+.btn-add-cart:active { transform: translateY(1px) scale(0.98) translateZ(2px); }
+.btn-auth:active     { transform: translateY(1px) scale(0.98); }
+
+/* 3D sidebar entrance */
+.sidebar {
+  transform-origin: right center;
+}
+.sidebar.active {
+  right: 0;
+  box-shadow: -24px 0 80px rgba(124, 58, 237, 0.18), -4px 0 20px rgba(0,0,0,0.1);
+}
+
+/* Floating 3D orbs — hero extra depth */
+.hero-orb-3d-a,
+.hero-orb-3d-b {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: orb3dFloat 9s ease-in-out infinite alternate;
+}
+.hero-orb-3d-a {
+  width: 180px; height: 180px;
+  top: 12%; right: 8%;
+  background: radial-gradient(circle at 35% 35%, rgba(192, 38, 211, 0.9), rgba(124, 58, 237, 0.6) 50%, transparent 75%);
+  box-shadow: 0 0 60px rgba(192, 38, 211, 0.5), inset -20px -20px 40px rgba(0,0,0,0.3), inset 10px 10px 20px rgba(255,255,255,0.12);
+  animation-delay: 0s;
+  z-index: 2;
+}
+.hero-orb-3d-b {
+  width: 110px; height: 110px;
+  bottom: 15%; right: 22%;
+  background: radial-gradient(circle at 35% 35%, rgba(245, 158, 11, 0.95), rgba(236, 72, 153, 0.7) 50%, transparent 75%);
+  box-shadow: 0 0 40px rgba(245, 158, 11, 0.45), inset -12px -12px 24px rgba(0,0,0,0.3), inset 6px 6px 12px rgba(255,255,255,0.15);
+  animation-delay: -4.5s;
+  z-index: 2;
+}
+@keyframes orb3dFloat {
+  0%   { transform: translate(0, 0) scale(1) rotateY(0deg); }
+  50%  { transform: translate(-10px, -20px) scale(1.06) rotateY(15deg); }
+  100% { transform: translate(15px, -8px) scale(0.95) rotateY(-10deg); }
+}
+
+/* 3D ring decoration in hero */
+.hero-ring-3d {
+  position: absolute;
+  right: 5%;
+  top: 50%;
+  transform: translateY(-50%) perspective(600px) rotateX(70deg) rotateZ(15deg);
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  border: 3px solid rgba(124, 58, 237, 0.4);
+  box-shadow: 0 0 30px rgba(124, 58, 237, 0.3), inset 0 0 30px rgba(192, 38, 211, 0.15);
+  animation: ringFloat3d 12s ease-in-out infinite alternate;
+  z-index: 2;
+  pointer-events: none;
+}
+.hero-ring-3d::after {
+  content: "";
+  position: absolute;
+  inset: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(236, 72, 153, 0.3);
+  box-shadow: 0 0 20px rgba(236, 72, 153, 0.2);
+}
+@keyframes ringFloat3d {
+  from { transform: translateY(-50%) perspective(600px) rotateX(70deg) rotateZ(10deg); }
+  to   { transform: translateY(-52%) perspective(600px) rotateX(65deg) rotateZ(25deg); }
+}
+
+/* Scroll-driven depth parallax marker */
+[data-depth] { will-change: transform; }
+
+/* ============================================================
    RESPONSIVE
    ============================================================ */
 @media (max-width: 960px) {
