@@ -1560,6 +1560,66 @@ header.scrolled {
   box-shadow: 0 4px 14px rgba(124, 58, 237, 0.3);
 }
 
+/* ---------- Product reviews -------------------------------- */
+.pdp-stars-empty { color: var(--border-solid); }
+.pdp-reviews { margin-top: 2.5rem; }
+.pdp-reviews h2 { margin-bottom: 1rem; }
+.pdp-review-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+  font-weight: 700;
+}
+.pdp-review-list { display: grid; gap: 1rem; }
+.pdp-review-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
+  background: var(--surface, #fff);
+}
+.pdp-review-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.4rem;
+}
+.pdp-review-head span { color: var(--text-muted); font-size: 0.8rem; }
+.pdp-review-card p { color: var(--text-muted); font-weight: 500; }
+
+.review-panel { margin-top: 1rem; display: grid; gap: 0.75rem; }
+.review-item { display: grid; gap: 0.5rem; }
+.review-form { display: grid; gap: 0.75rem; margin-top: 0.25rem; }
+.review-form textarea {
+  min-height: 72px;
+  resize: vertical;
+  border: 2px solid var(--border-solid);
+  border-radius: 10px;
+  padding: 0.85rem;
+  font: inherit;
+}
+.review-stars { display: flex; gap: 0.25rem; }
+.review-star {
+  border: 0;
+  background: none;
+  font-size: 1.6rem;
+  color: var(--border-solid);
+  cursor: pointer;
+  padding: 0 0.15rem;
+}
+.review-star.active { color: var(--c-gold); }
+.btn-review {
+  border: 0;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  padding: 0.75rem 1rem;
+  font-weight: 800;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.3);
+  cursor: pointer;
+}
+
 /* ---------- Loaders & empty states ------------------------- */
 .loader, .empty-state {
   padding: 4rem;

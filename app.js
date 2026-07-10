@@ -302,6 +302,11 @@ function renderProductPreview(item = {}, productName = "Product") {
   return renderImageFrame(item.src, productName, "pdp-main-image", "eager");
 }
 
+function starRow(rating = 0) {
+  const filled = Math.min(5, Math.max(0, Math.round(Number(rating) || 0)));
+  return `<span class="pdp-stars">${"&#9733;".repeat(filled)}<span class="pdp-stars-empty">${"&#9734;".repeat(5 - filled)}</span></span>`;
+}
+
 function ratingMarkup(product = {}) {
   const rating = Number(product.rating ?? product.average_rating ?? 0);
   const count = Number(product.review_count ?? product.reviews_count ?? 0);
@@ -310,8 +315,8 @@ function ratingMarkup(product = {}) {
   }
   return `
     <span class="pdp-rating-score">${rating.toFixed(1)}</span>
-    <span class="pdp-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
-    <span class="pdp-rating-count">${count ? `${count} ratings` : "Rated product"}</span>
+    ${starRow(rating)}
+    <span class="pdp-rating-count">${count ? `${count} rating${count === 1 ? "" : "s"}` : "Rated product"}</span>
   `;
 }
 
@@ -420,8 +425,50 @@ function renderProductPage(product = {}) {
 
         ${renderDeliveryInfo()}
       </div>
+
+      <section class="pdp-reviews" id="pdp-reviews" aria-label="Customer reviews">
+        <h2>Customer Reviews</h2>
+        <div class="loader">Loading reviews...</div>
+      </section>
     </div>
   `;
+}
+
+async function loadProductReviews(productId) {
+  const container = $("#pdp-reviews");
+  if (!container) return;
+
+  try {
+    const data = await api(`/products/${encodeURIComponent(productId)}/reviews`);
+    const reviews = Array.isArray(data.reviews) ? data.reviews : [];
+    const count = Number(data.review_count || 0);
+    const average = Number(data.average_rating || 0);
+
+    container.innerHTML = `
+      <h2>Customer Reviews</h2>
+      ${count ? `
+        <div class="pdp-review-summary">
+          <span class="pdp-rating-score">${average.toFixed(1)}</span>
+          ${starRow(average)}
+          <span class="pdp-rating-count">${count} review${count === 1 ? "" : "s"}</span>
+        </div>
+        <div class="pdp-review-list">
+          ${reviews.map((review) => `
+            <article class="pdp-review-card">
+              <div class="pdp-review-head">
+                ${starRow(review.rating)}
+                <strong>${escapeHtml(review.reviewer_name || "Poohter buyer")}</strong>
+                <span>${review.created_at ? new Date(review.created_at).toLocaleDateString() : ""}</span>
+              </div>
+              ${review.comment ? `<p>${escapeHtml(review.comment)}</p>` : ""}
+            </article>
+          `).join("")}
+        </div>
+      ` : '<div class="empty-state">No reviews yet. Buyers can rate this product from their delivered orders.</div>'}
+    `;
+  } catch {
+    container.innerHTML = '<h2>Customer Reviews</h2><div class="empty-state">Reviews are unavailable right now.</div>';
+  }
 }
 
 function renderCheckoutPage(item = null) {
@@ -747,6 +794,7 @@ async function loadProductPage(productId) {
     state.productQuantity = 1;
     container.innerHTML = renderProductPage(product);
     iconRefresh();
+    loadProductReviews(product.id);
   } catch (error) {
     container.innerHTML = `
       <div class="product-error">
@@ -1155,6 +1203,64 @@ function returnActionMarkup(order = {}) {
   `;
 }
 
+function reviewActionMarkup(order = {}) {
+  if (!["delivered", "successful"].includes(order.status)) return "";
+  const items = (Array.isArray(order.items) ? order.items : []).filter((item) => item.product_id);
+  if (!items.length) return "";
+
+  return `
+    <div class="review-panel">
+      ${items.map((item) => {
+        const key = `${order.id}-${item.product_id}`;
+        return `
+          <div class="review-item">
+            <button class="btn-review" data-open-review="${escapeHtml(key)}" type="button">
+              Rate "${escapeHtml(item.product_name || "Product")}"
+            </button>
+            <div class="review-form hidden" id="review-form-${escapeHtml(key)}" data-rating="0">
+              <div class="review-stars" role="radiogroup" aria-label="Rating">
+                ${[1, 2, 3, 4, 5].map((star) => `
+                  <button class="review-star" data-review-star="${star}" data-review-key="${escapeHtml(key)}" type="button" aria-label="${star} star${star === 1 ? "" : "s"}">&#9734;</button>
+                `).join("")}
+              </div>
+              <textarea id="review-comment-${escapeHtml(key)}" placeholder="Share your experience (optional)" maxlength="2000"></textarea>
+              <button class="btn-review" data-submit-review="${escapeHtml(key)}" data-review-product="${escapeHtml(item.product_id)}" type="button">Submit Review</button>
+            </div>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function selectReviewStar(button) {
+  const key = button.dataset.reviewKey;
+  const rating = Number(button.dataset.reviewStar);
+  const form = document.getElementById(`review-form-${key}`);
+  if (!form) return;
+  form.dataset.rating = String(rating);
+  form.querySelectorAll(".review-star").forEach((star) => {
+    const starValue = Number(star.dataset.reviewStar);
+    star.innerHTML = starValue <= rating ? "&#9733;" : "&#9734;";
+    star.classList.toggle("active", starValue <= rating);
+  });
+}
+
+async function submitProductReview(key, productId) {
+  const form = document.getElementById(`review-form-${String(key)}`);
+  const rating = Number(form?.dataset.rating || 0);
+  if (!rating) return notify("Select a star rating first.", "error");
+  const comment = document.getElementById(`review-comment-${String(key)}`)?.value.trim() || "";
+
+  try {
+    await api(`/products/${encodeURIComponent(productId)}/reviews`, "POST", { rating, comment });
+    notify("Thank you! Your review has been saved.", "success");
+    form?.classList.add("hidden");
+  } catch (error) {
+    notify(error.message, "error");
+  }
+}
+
 async function submitReturnRequest(orderId) {
   const reason = document.getElementById(`return-reason-${String(orderId)}`)?.value.trim();
   if (!reason) return notify("Enter a return reason.", "error");
@@ -1207,6 +1313,7 @@ async function loadOrders() {
         ` : ""}
       </div>
           ${returnActionMarkup(order)}
+          ${reviewActionMarkup(order)}
           <div style="text-align: right; margin-top: 1.5rem; border-top: 1px solid var(--border); padding-top: 1rem; font-weight: 800; font-size: 1.2rem;">
             Total Paid: ${money(order.total_price || order.totalAmount)}
           </div>
@@ -1529,6 +1636,12 @@ document.addEventListener("click", (event) => {
       return;
     }
     if (button.dataset.submitReturn) return submitReturnRequest(button.dataset.submitReturn);
+    if (button.dataset.openReview) {
+      document.getElementById(`review-form-${button.dataset.openReview}`)?.classList.toggle("hidden");
+      return;
+    }
+    if (button.dataset.reviewStar) return selectReviewStar(button);
+    if (button.dataset.submitReview) return submitProductReview(button.dataset.submitReview, button.dataset.reviewProduct);
     if (button.dataset.openAuth !== undefined) {
       if (!state.token) {
         showAuth("login");
