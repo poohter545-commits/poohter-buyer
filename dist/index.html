@@ -10,8 +10,23 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@700;800;900&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/styles.css?v=luxury-20260619" />
+    <link rel="stylesheet" href="/styles.css?v=3d-20260625" />
     <script src="https://unpkg.com/lucide@latest" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
+
+    <!-- TikTok Pixel Code Start -->
+    <script>
+      !function (w, d, t) {
+        w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie","holdConsent","revokeConsent","grantConsent"],ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(
+        var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e},ttq.load=function(e,n){var r="https://analytics.tiktok.com/i18n/pixel/events.js",o=n&&n.partner;ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=r,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};n=document.createElement("script")
+        ;n.type="text/javascript",n.async=!0,n.src=r+"?sdkid="+e+"&lib="+t;e=document.getElementsByTagName("script")[0];e.parentNode.insertBefore(n,e)};
+
+
+        ttq.load('D9A5EDJC77U6KOKLI90G');
+        ttq.page();
+      }(window, document, 'ttq');
+    </script>
+    <!-- TikTok Pixel Code End -->
   </head>
   <body>
     <div id="alert-container"></div>
@@ -251,6 +266,10 @@
             <!-- Hero image blob (legacy placeholder) -->
             <div class="hero-img-blob"></div>
             <!-- Content -->
+            <canvas id="hero-canvas" aria-hidden="true"></canvas>
+            <div class="hero-orb-3d-a" aria-hidden="true"></div>
+            <div class="hero-orb-3d-b" aria-hidden="true"></div>
+            <div class="hero-ring-3d" aria-hidden="true"></div>
             <div class="hero-content">
               <div class="hero-eyebrow">Exclusive Collections 2026</div>
               <h1>Premium Style<br/>For Everyone</h1>
@@ -354,6 +373,195 @@
       window.POOHTER_ACCOUNT_TYPE = "buyer";
       window.POOHTER_WHATSAPP_NUMBER = window.POOHTER_WHATSAPP_NUMBER || "923000000000";
     </script>
-    <script src="/app.js?v=luxury-20260619" defer></script>
+    <script src="/app.js?v=3d-20260625" defer></script>
+    <script>
+    /* ---------- 3D INIT (runs after DOM + Three.js are ready) ---------- */
+    function init3D() {
+      /* ---- Three.js hero background ---- */
+      initHero3D();
+      /* ---- Card 3D tilt ---- */
+      initCardTilt();
+      /* ---- Parallax scroll ---- */
+      initParallax();
+    }
+
+    /* ============ THREE.JS HERO ============ */
+    function initHero3D() {
+      if (typeof THREE === "undefined") return;
+      const canvas = document.getElementById("hero-canvas");
+      if (!canvas) return;
+      const hero = canvas.closest(".hero");
+      if (!hero) return;
+
+      const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setClearColor(0x000000, 0);
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
+      camera.position.set(0, 0, 5);
+
+      /* Resize to match hero */
+      function resize() {
+        const w = hero.clientWidth, h = hero.clientHeight;
+        renderer.setSize(w, h);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+      }
+      resize();
+      new ResizeObserver(resize).observe(hero);
+
+      /* Shared materials */
+      const matPurple = new THREE.MeshBasicMaterial({ color: 0x7c3aed, wireframe: true, opacity: 0.55, transparent: true });
+      const matPink   = new THREE.MeshBasicMaterial({ color: 0xc026d3, wireframe: true, opacity: 0.45, transparent: true });
+      const matGold   = new THREE.MeshBasicMaterial({ color: 0xf59e0b, wireframe: true, opacity: 0.35, transparent: true });
+
+      /* Floating shapes */
+      const shapes = [];
+
+      function addShape(geo, mat, x, y, z, rx, ry, rz) {
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(x, y, z);
+        mesh.rotation.set(rx, ry, rz);
+        scene.add(mesh);
+        shapes.push(mesh);
+        return mesh;
+      }
+
+      addShape(new THREE.IcosahedronGeometry(0.9, 1), matPurple,  2.5,  0.5, -1,  0.3, 0.5, 0);
+      addShape(new THREE.OctahedronGeometry(0.6, 0),  matPink,   -2.8,  0.8, -0.5, 0.2, 0.3, 0.1);
+      addShape(new THREE.TorusGeometry(0.7, 0.18, 8, 24), matPurple, 1.8, -1.2, -0.5, 1.2, 0.4, 0);
+      addShape(new THREE.TetrahedronGeometry(0.55, 0), matGold,  -1.6, -1.0, -0.3, 0.5, 0.8, 0.2);
+      addShape(new THREE.IcosahedronGeometry(0.45, 0), matPink,   0.3,  1.6, -0.8, 0.1, 0.2, 0.4);
+      addShape(new THREE.OctahedronGeometry(0.35, 0),  matGold,  -3.2, -0.5, -1.0, 0.3, 0.6, 0.1);
+
+      /* Particles */
+      const ptGeo = new THREE.BufferGeometry();
+      const ptCount = 120;
+      const ptPos = new Float32Array(ptCount * 3);
+      for (let i = 0; i < ptCount; i++) {
+        ptPos[i * 3]     = (Math.random() - 0.5) * 10;
+        ptPos[i * 3 + 1] = (Math.random() - 0.5) * 6;
+        ptPos[i * 3 + 2] = (Math.random() - 0.5) * 4 - 2;
+      }
+      ptGeo.setAttribute("position", new THREE.BufferAttribute(ptPos, 3));
+      const ptMat = new THREE.PointsMaterial({ color: 0xa78bfa, size: 0.04, transparent: true, opacity: 0.7 });
+      scene.add(new THREE.Points(ptGeo, ptMat));
+
+      /* Mouse parallax on shapes */
+      let mx = 0, my = 0;
+      hero.addEventListener("mousemove", (e) => {
+        const r = hero.getBoundingClientRect();
+        mx = ((e.clientX - r.left) / r.width  - 0.5) * 2;
+        my = ((e.clientY - r.top)  / r.height - 0.5) * 2;
+      });
+
+      /* Animate */
+      const clock = new THREE.Clock();
+      const speeds = shapes.map(() => ({ rx: (Math.random()-0.5)*0.6, ry: (Math.random()-0.5)*0.8, rz: (Math.random()-0.5)*0.4 }));
+
+      (function animate() {
+        requestAnimationFrame(animate);
+        const t = clock.getElapsedTime();
+        shapes.forEach((m, i) => {
+          const s = speeds[i];
+          m.rotation.x += s.rx * 0.008;
+          m.rotation.y += s.ry * 0.008;
+          m.rotation.z += s.rz * 0.005;
+          m.position.y += Math.sin(t * 0.6 + i * 1.3) * 0.001;
+        });
+        camera.position.x += (mx * 0.3 - camera.position.x) * 0.04;
+        camera.position.y += (-my * 0.2 - camera.position.y) * 0.04;
+        renderer.render(scene, camera);
+      })();
+    }
+
+    /* ============ CARD 3D TILT ============ */
+    function initCardTilt() {
+      const MAX_TILT = 14;
+
+      function onEnter(e) {
+        const card = e.currentTarget;
+        card.style.transition = "box-shadow 0.4s, border-color 0.3s";
+        card.style.boxShadow = "0 32px 80px rgba(124, 58, 237, 0.28), 0 8px 24px rgba(0,0,0,0.10)";
+        card.style.borderColor = "transparent";
+      }
+      function onMove(e) {
+        const card = e.currentTarget;
+        const r = card.getBoundingClientRect();
+        const x = (e.clientX - r.left) / r.width  - 0.5;
+        const y = (e.clientY - r.top)  / r.height - 0.5;
+        const rotY =  x * MAX_TILT;
+        const rotX = -y * MAX_TILT;
+        card.style.transition = "box-shadow 0.1s, border-color 0.1s";
+        card.style.transform = `perspective(900px) rotateX(${rotX}deg) rotateY(${rotY}deg) translateZ(12px) scale(1.01)`;
+        const shine = card.querySelector(".card-shine");
+        if (shine) {
+          shine.style.setProperty("--mx", `${(x + 0.5) * 100}%`);
+          shine.style.setProperty("--my", `${(y + 0.5) * 100}%`);
+        }
+      }
+      function onLeave(e) {
+        const card = e.currentTarget;
+        card.style.transition = "transform 0.55s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.55s, border-color 0.3s";
+        card.style.transform = "";
+        card.style.boxShadow = "";
+        card.style.borderColor = "";
+      }
+
+      /* Attach to existing cards + observe future cards */
+      function attachCard(card) {
+        if (card._tilt3d) return;
+        card._tilt3d = true;
+        /* inject shine layer */
+        if (!card.querySelector(".card-shine")) {
+          const shine = document.createElement("div");
+          shine.className = "card-shine";
+          card.appendChild(shine);
+        }
+        card.addEventListener("mouseenter", onEnter);
+        card.addEventListener("mousemove",  onMove);
+        card.addEventListener("mouseleave", onLeave);
+      }
+
+      document.querySelectorAll(".product-card").forEach(attachCard);
+
+      const obs = new MutationObserver(() => {
+        document.querySelectorAll(".product-card").forEach(attachCard);
+      });
+      obs.observe(document.body, { childList: true, subtree: true });
+    }
+
+    /* ============ PARALLAX SCROLL ============ */
+    function initParallax() {
+      const hero = document.querySelector(".hero");
+      const heroContent = document.querySelector(".hero-content");
+      if (!hero || !heroContent) return;
+      let ticking = false;
+      window.addEventListener("scroll", () => {
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(() => {
+          const scrollY = window.scrollY;
+          const heroH = hero.offsetHeight;
+          if (scrollY < heroH) {
+            const pct = scrollY / heroH;
+            heroContent.style.transform = `translateY(${scrollY * 0.18}px) translateZ(20px)`;
+            heroContent.style.opacity = 1 - pct * 0.6;
+          }
+          ticking = false;
+        });
+      }, { passive: true });
+    }
+
+    /* Boot after everything is ready */
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", () => {
+        setTimeout(init3D, 200);
+      });
+    } else {
+      setTimeout(init3D, 200);
+    }
+    </script>
   </body>
 </html>
